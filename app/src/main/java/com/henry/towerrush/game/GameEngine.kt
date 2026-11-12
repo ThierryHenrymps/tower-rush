@@ -1,0 +1,213 @@
+package com.henry.towerrush.game
+
+import android.graphics.Color
+import com.henry.towerrush.data.GamePreferences
+import com.henry.towerrush.entities.Block
+import com.henry.towerrush.entities.IsoProjection
+import com.henry.towerrush.entities.Tower
+import com.henry.towerrush.entities.Wizard
+import com.henry.towerrush.powerups.PowerUpManager
+import com.henry.towerrush.powerups.PowerUpType
+import com.henry.towerrush.store.StoreManager
+import com.henry.towerrush.ui.GameState
+import kotlin.math.abs
+
+class GameEngine(
+    val prefs: GamePreferences,
+    val storeManager: StoreManager
+) {
+    val tower = Tower()
+    val wizard = Wizard()
+    val powerUpManager = PowerUpManager()
+
+    var state: GameState = GameState.START
+    var score: Int = 0
+    var screenWidth: Float = 0f
+    var screenHeight: Float = 0f
+
+    // Medidas escalam com a largura da tela (1080 px = referência) e com o zoom da câmera.
+    private var unit = 1f
+    private var speedUnit = 1f
+    private var blockHeight = 64f
+    private var defaultWidth = 300f
+    var movingBlock: Block? = null
+    private var moveSpeed = 8f
+    private var movingRight = true
+    private var stackCount = 0
+
+    // Informações do último encaixe, usadas só pelos efeitos visuais.
+    var placementCount: Int = 0
+        private set
+    var lastPlacedBlock: Block? = null
+        private set
+    var lastWasPerfect: Boolean = false
+        private set
+    var lastCutX: Float = 0f
+        private set
+    var lastCutWidth: Float = 0f
+        private set
+
+    fun setup(w: Float, h: Float) {
+        screenWidth = w
+        screenHeight = h
+        if (w > 0f) {
+            unit = (w / 1080f) * ZOOM
+            blockHeight = 88f * unit
+            defaultWidth = 300f * unit
+            speedUnit = (w / 1080f) * SPEED_SCALE
+            IsoProjection.configure(w, blockHeight, defaultWidth)
+        }
+    }
+
+    fun startNewGame() {
+        score = 0
+        stackCount = 0
+        moveSpeed = 8f * speedUnit
+        placementCount = 0
+        lastPlacedBlock = null
+        powerUpManager.reset()
+        wizard.reset()
+        tower.clear()
+
+        // Bloco base inicial
+        val baseBlock = Block(
+            x = (screenWidth - defaultWidth) / 2f - blockHeight * 0.46f,
+            y = screenHeight * 0.755f,
+            width = defaultWidth,
+            height = blockHeight,
+            color = storeManager.getCurrentTheme().colors[0]
+        )
+        tower.addBlock(baseBlock)
+        spawnNextBlock()
+        state = GameState.PLAYING
+    }
+
+    private fun spawnNextBlock() {
+        val top = tower.getTopBlock() ?: return
+        var nextWidth = top.width
+
+        if (powerUpManager.isMagicBlockActive) {
+            nextWidth = (nextWidth * 1.3f).coerceAtMost(screenWidth)
+            powerUpManager.isMagicBlockActive = false
+        }
+
+        val theme = storeManager.getCurrentTheme()
+        val color = theme.colors[stackCount % theme.colors.size]
+
+        movingBlock = Block(
+            x = 0f,
+            y = top.y - blockHeight,
+            width = nextWidth,
+            height = blockHeight,
+            color = color
+        )
+    }
+
+    fun update() {
+        if (state != GameState.PLAYING) return
+
+        powerUpManager.update()
+
+        val block = movingBlock ?: return
+        val currentSpeed = if (powerUpManager.isFrozen) moveSpeed * 0.4f else moveSpeed
+
+        if (movingRight) {
+            block.x += currentSpeed
+            if (block.x + block.width >= screenWidth - block.height * 0.5f) movingRight = false
+        } else {
+            block.x -= currentSpeed
+            if (block.x <= block.height * 0.46f) movingRight = true
+        }
+    }
+
+    fun onScreenTapped(touchX: Float, touchY: Float) {
+        when (state) {
+            GameState.START -> startNewGame()
+            GameState.PLAYING -> handleBlockPlacement()
+            GameState.WIZARD_SELECTION -> { /* Tratado pelo GameView via coordenadas dos cards */ }
+            GameState.GAME_OVER -> state = GameState.START
+            else -> {}
+        }
+    }
+
+    private fun handleBlockPlacement() {
+        val current = movingBlock ?: return
+        val top = tower.getTopBlock() ?: return
+
+        val diff = current.x - top.x
+        val tolerance = 8f * unit // Margem para encaixe perfeito
+        val oldX = current.x
+        val oldWidth = current.width
+        lastWasPerfect = false
+        lastCutWidth = 0f
+
+        if (abs(diff) <= tolerance) {
+            // Encaixe Perfeito
+            current.x = top.x
+            tower.addBlock(current)
+            prefs.coins += 2
+            lastWasPerfect = true
+        } else if (diff > 0 && diff < top.width) {
+            // Corta lado direito
+            val newWidth = top.width - diff
+            current.width = newWidth
+            tower.addBlock(current)
+            prefs.coins += 1
+            lastCutX = current.x + newWidth
+            lastCutWidth = (oldWidth - newWidth).coerceAtLeast(0f)
+        } else if (diff < 0 && abs(diff) < current.width) {
+            // Corta lado esquerdo
+            val newWidth = current.width - abs(diff)
+            lastCutX = oldX
+            lastCutWidth = abs(diff)
+            current.x = top.x
+            current.width = newWidth
+            tower.addBlock(current)
+            prefs.coins += 1
+        } else {
+            // Erro fatal
+            if (powerUpManager.hasSecondChance) {
+                powerUpManager.hasSecondChance = false
+                current.x = top.x
+                tower.addBlock(current)
+            } else {
+                gameOver()
+                return
+            }
+        }
+
+        lastPlacedBlock = current
+        placementCount++
+
+        score++
+        stackCount++
+        moveSpeed += 0.25f * speedUnit
+
+        // Verificação de aparição do Mago a cada 10 blocos
+        if (stackCount % 10 == 0) {
+            wizard.summon(screenWidth, screenHeight)
+            state = GameState.WIZARD_SELECTION
+            return
+        }
+
+        spawnNextBlock()
+    }
+
+    fun selectPowerUp(type: PowerUpType) {
+        powerUpManager.applyPowerUp(type)
+        wizard.dismiss()
+        state = GameState.PLAYING
+        spawnNextBlock()
+    }
+
+    private fun gameOver() {
+        state = GameState.GAME_OVER
+        prefs.highScore = score
+    }
+
+    private companion object {
+        const val ZOOM = 1.9f
+        // blocos maiores => trajeto menor; a velocidade é reduzida para manter o mesmo ritmo
+        const val SPEED_SCALE = 0.55f
+    }
+}
