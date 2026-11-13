@@ -26,6 +26,7 @@ class GameEngine(
     var screenHeight: Float = 0f
     var wizardSummonCount: Int = 0
     var activeDebuffMessage: String? = null
+    var hasRevivedThisGame: Boolean = false
 
     // Medidas escalam com a largura da tela (1080 px = referência) e com o zoom da câmera.
     private var unit = 1f
@@ -69,6 +70,7 @@ class GameEngine(
         lastPlacedBlock = null
         wizardSummonCount = 0
         activeDebuffMessage = null
+        hasRevivedThisGame = false
         powerUpManager.reset()
         wizard.reset()
         tower.clear()
@@ -129,7 +131,7 @@ class GameEngine(
             GameState.START -> startNewGame()
             GameState.PLAYING -> handleBlockPlacement()
             GameState.WIZARD_SELECTION -> { /* Tratado pelo GameView via coordenadas dos cards */ }
-            GameState.GAME_OVER -> state = GameState.START
+            GameState.GAME_OVER, GameState.NEW_RECORD -> state = GameState.START
             else -> {}
         }
     }
@@ -241,9 +243,22 @@ class GameEngine(
         spawnNextBlock()
     }
 
+    fun reviveGame() {
+        if (hasRevivedThisGame) return
+        hasRevivedThisGame = true
+        spawnNextBlock()
+        state = GameState.PLAYING
+    }
+
     private fun gameOver() {
-        state = GameState.GAME_OVER
-        prefs.highScore = score
+        val currentScore = score
+        val oldHigh = prefs.highScore
+        if (currentScore > oldHigh) {
+            prefs.highScore = currentScore
+            state = GameState.NEW_RECORD
+        } else {
+            state = GameState.GAME_OVER
+        }
     }
 
     private companion object {

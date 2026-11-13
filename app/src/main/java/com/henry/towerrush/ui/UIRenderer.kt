@@ -9,6 +9,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import com.henry.towerrush.data.BotRankingManager
 import com.henry.towerrush.powerups.PowerUpType
 import com.henry.towerrush.store.StoreManager
 import com.henry.towerrush.store.Theme
@@ -38,6 +39,8 @@ class UIRenderer(private val storeManager: StoreManager) {
     val settingsButtonBounds = RectF()
     val botRankingButtonBounds = RectF()
     val botRankingCloseBounds = RectF()
+    val reviveButtonBounds = RectF()
+    val gameOverRestartButtonBounds = RectF()
     val powerUpCardBounds = mutableListOf<Pair<RectF, PowerUpType>>()
     val storeCardBounds = mutableListOf<Pair<RectF, Theme>>()
     val storeCloseBounds = RectF()
@@ -111,7 +114,7 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.typeface = boldFace
         textPaint.color = Color.WHITE
         textPaint.textSize = 30f * u
-        canvas.drawText("🤖  RANKING DIÁRIO DE BOT", width / 2f, cy + 11f * u, textPaint)
+        canvas.drawText("🏆  CLASSIFICAÇÃO DIÁRIA", width / 2f, cy + 11f * u, textPaint)
     }
 
     private fun drawStoreButton(canvas: Canvas, width: Float, height: Float, u: Float) {
@@ -255,37 +258,123 @@ class UIRenderer(private val storeManager: StoreManager) {
 
     // ------------------------------------------------------------------ game over
 
-    fun drawGameOver(canvas: Canvas, width: Float, height: Float, score: Int, high: Int) {
+    fun drawGameOver(
+        canvas: Canvas, width: Float, height: Float, score: Int, high: Int,
+        hasRevived: Boolean, adLoaded: Boolean, adLoading: Boolean
+    ) {
         val u = width / 941f
-        fillPaint.color = 0x9909051B.toInt()
+        fillPaint.color = 0xCC0A041E.toInt()
         canvas.drawRect(0f, 0f, width, height, fillPaint)
 
-        rect.set(width * 0.5f - 330f * u, height * 0.5f - 300f * u, width * 0.5f + 330f * u, height * 0.5f + 250f * u)
-        drawGlass(canvas, rect, 48f * u, 0xB3180A44.toInt(), 0x55FFFFFF)
+        rect.set(width * 0.5f - 400f * u, height * 0.5f - 440f * u, width * 0.5f + 400f * u, height * 0.5f + 440f * u)
+        drawGlass(canvas, rect, 52f * u, 0xE62A1056.toInt(), 0x99FFE27A.toInt())
 
         textPaint.typeface = blackFace
         textPaint.color = Color.WHITE
-        textPaint.textSize = 76f * u
-        canvas.drawText("GAME OVER", width / 2f, rect.top + 130f * u, textPaint)
+        textPaint.textSize = 62f * u
+        canvas.drawText("FIM DE JOGO", width / 2f, rect.top + 95f * u, textPaint)
+
+        // Pontuação
+        textPaint.typeface = mediumFace
+        textPaint.color = 0xFFE0D2FF.toInt()
+        textPaint.textSize = 28f * u
+        canvas.drawText("Pontuação da Partida", width / 2f, rect.top + 165f * u, textPaint)
+
+        textPaint.typeface = blackFace
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 80f * u
+        canvas.drawText(score.toString(), width / 2f, rect.top + 250f * u, textPaint)
+
+        // Recorde / Novo Recorde
+        textPaint.typeface = mediumFace
+        textPaint.textSize = 26f * u
+        val isNewRecord = score > high
+        if (isNewRecord) {
+            textPaint.color = 0xFFFFE27A.toInt()
+            canvas.drawText("🎉 NOVO RECORDE PESSOAL!", width / 2f, rect.top + 315f * u, textPaint)
+        } else {
+            textPaint.color = 0xFFE0D2FF.toInt()
+            canvas.drawText("Recorde: $high", width / 2f, rect.top + 315f * u, textPaint)
+        }
+
+        // Botão Reviver com Anúncio
+        if (!hasRevived) {
+            val btnW = 640f * u
+            val btnH = 96f * u
+            val btnTop = rect.top + 360f * u
+            reviveButtonBounds.set(width / 2f - btnW / 2f, btnTop, width / 2f + btnW / 2f, btnTop + btnH)
+
+            fillPaint.color = if (adLoaded) 0xFF7B3DFF.toInt() else 0xFF4A3C78.toInt()
+            canvas.drawRoundRect(reviveButtonBounds, btnH / 2f, btnH / 2f, fillPaint)
+            strokePaint.color = 0xAAFFFFFF.toInt()
+            strokePaint.strokeWidth = 3.5f * u
+            canvas.drawRoundRect(reviveButtonBounds, btnH / 2f, btnH / 2f, strokePaint)
+
+            textPaint.typeface = boldFace
+            textPaint.color = Color.WHITE
+            textPaint.textSize = 28f * u
+            val btnText = when {
+                adLoaded -> "🎬 ASSISTIR ANÚNCIO PARA REVIVER"
+                adLoading -> "⏳ CARREGANDO ANÚNCIO..."
+                else -> "🔄 CARREGAR ANÚNCIO (TENTAR)"
+            }
+            canvas.drawText(btnText, width / 2f, reviveButtonBounds.centerY() + 10f * u, textPaint)
+        } else {
+            reviveButtonBounds.setEmpty()
+        }
+
+        // Botão Voltar ao Menu
+        val restW = 640f * u
+        val restH = 88f * u
+        val restTop = if (!hasRevived) rect.top + 480f * u else rect.top + 390f * u
+        gameOverRestartButtonBounds.set(width / 2f - restW / 2f, restTop, width / 2f + restW / 2f, restTop + restH)
+
+        fillPaint.color = 0x44FFFFFF
+        canvas.drawRoundRect(gameOverRestartButtonBounds, restH / 2f, restH / 2f, fillPaint)
+        strokePaint.color = 0x66FFFFFF
+        strokePaint.strokeWidth = 3f * u
+        canvas.drawRoundRect(gameOverRestartButtonBounds, restH / 2f, restH / 2f, strokePaint)
+
+        textPaint.typeface = boldFace
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 28f * u
+        canvas.drawText("VOLTAR AO MENU", width / 2f, gameOverRestartButtonBounds.centerY() + 10f * u, textPaint)
+    }
+
+    fun drawNewRecord(canvas: Canvas, width: Float, height: Float, score: Int) {
+        val u = width / 941f
+        fillPaint.color = 0xBB10062C.toInt()
+        canvas.drawRect(0f, 0f, width, height, fillPaint)
+
+        rect.set(width * 0.5f - 350f * u, height * 0.5f - 320f * u, width * 0.5f + 350f * u, height * 0.5f + 280f * u)
+        drawGlass(canvas, rect, 48f * u, 0xE62A1056.toInt(), 0x88FFE27A.toInt())
+
+        textPaint.typeface = blackFace
+        textPaint.color = 0xFFFFE27A.toInt()
+        textPaint.textSize = 68f * u
+        canvas.drawText("NOVO RECORDE!", width / 2f, rect.top + 115f * u, textPaint)
+
+        drawCrownIcon(canvas, width / 2f, rect.top + 135f * u, 90f * u, 65f * u, 0xFFFFE27A.toInt())
 
         textPaint.typeface = mediumFace
         textPaint.color = 0xFFE0D2FF.toInt()
         textPaint.textSize = 32f * u
-        canvas.drawText("Pontos", width / 2f, rect.top + 225f * u, textPaint)
-        textPaint.typeface = boldFace
+        canvas.drawText("Pontuação Máxima", width / 2f, rect.top + 265f * u, textPaint)
+
+        textPaint.typeface = blackFace
         textPaint.color = Color.WHITE
-        textPaint.textSize = 86f * u
-        canvas.drawText(score.toString(), width / 2f, rect.top + 310f * u, textPaint)
+        textPaint.textSize = 96f * u
+        canvas.drawText(score.toString(), width / 2f, rect.top + 375f * u, textPaint)
+
+        textPaint.typeface = boldFace
+        textPaint.color = 0xFF9BFFC9.toInt()
+        textPaint.textSize = 32f * u
+        canvas.drawText("Parabéns, Lenda!", width / 2f, rect.top + 440f * u, textPaint)
 
         textPaint.typeface = mediumFace
-        textPaint.color = 0xFFE0D2FF.toInt()
-        textPaint.textSize = 32f * u
-        canvas.drawText("Recorde  $high", width / 2f, rect.top + 390f * u, textPaint)
-
         textPaint.color = Color.WHITE
-        textPaint.textSize = 30f * u
-        canvas.drawText("Toque para reiniciar", width / 2f, rect.bottom - 40f * u, textPaint)
-        textPaint.typeface = boldFace
+        textPaint.textSize = 28f * u
+        canvas.drawText("Toque para continuar", width / 2f, rect.bottom - 40f * u, textPaint)
     }
 
     // ------------------------------------------------------------------ loja de cores
@@ -431,7 +520,7 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.color = Color.WHITE
     }
 
-    fun drawBotRanking(canvas: Canvas, width: Float, height: Float, highScore: Int) {
+    fun drawBotRanking(canvas: Canvas, width: Float, height: Float, highScore: Int, botRankingManager: BotRankingManager) {
         val u = width / 941f
         fillPaint.color = 0xB0090320.toInt()
         canvas.drawRect(0f, 0f, width, height, fillPaint)
@@ -451,42 +540,44 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = blackFace
         textPaint.textSize = 48f * u
-        canvas.drawText("RANKING DIÁRIO", width / 2f, 115f * u, textPaint)
+        canvas.drawText("CLASSIFICAÇÃO DIÁRIA", width / 2f, 115f * u, textPaint)
         textPaint.typeface = mediumFace
         textPaint.textSize = 24f * u
         textPaint.color = 0xFFD9C8FF.toInt()
-        canvas.drawText("Atualizado há 12 minutos", width / 2f, 155f * u, textPaint)
 
-        // Lista de ranking
-        val bots = listOf(
-            Triple("1. 🥇 CyberMaster", 342, false),
-            Triple("2. 🥈 TowerLegend", 298, false),
-            Triple("3. 🥉 DeepStack", 256, false),
-            Triple("4. 👤 Você", max(highScore, 120), true),
-            Triple("5. 🤖 PixelKing", 184, false),
-            Triple("6. 🤖 ShadowKnight", 142, false),
-            Triple("7. 🤖 QuickStack", 115, false)
-        )
+        val protection = botRankingManager.protectionMatchesRemaining
+        val subtitle = if (protection > 0) "🛡️ Proteção de 1º lugar ($protection restantes)" else "Atualizado em tempo real"
+        canvas.drawText(subtitle, width / 2f, 155f * u, textPaint)
+
+        val competitors = botRankingManager.getCompetitors(highScore)
 
         val top = 200f * u
-        val rowH = 88f * u
+        val rowH = 82f * u
         val margin = 40f * u
         val w = width - margin * 2f
 
-        bots.forEachIndexed { index, bot ->
-            val ry = top + index * (rowH + 14f * u)
+        competitors.forEachIndexed { index, comp ->
+            val ry = top + index * (rowH + 12f * u)
             rect.set(margin, ry, margin + w, ry + rowH)
-            drawGlass(canvas, rect, 22f * u, if (bot.third) 0xCC3D1C8C.toInt() else 0xB3180A44.toInt(), if (bot.third) 0xFFFFE27A.toInt() else 0x38FFFFFF)
+            drawGlass(canvas, rect, 22f * u, if (comp.isPlayer) 0xCC3D1C8C.toInt() else 0xB3180A44.toInt(), if (comp.isPlayer) 0xFFFFE27A.toInt() else 0x38FFFFFF)
+
+            val medal = when (index) {
+                0 -> "1. 🥇 "
+                1 -> "2. 🥈 "
+                2 -> "3. 🥉 "
+                else -> "${index + 1}. 👤 "
+            }
+            val displayName = medal + comp.name
 
             textPaint.textAlign = Paint.Align.LEFT
-            textPaint.typeface = if (bot.third) boldFace else mediumFace
-            textPaint.color = if (bot.third) 0xFFFFE27A.toInt() else Color.WHITE
-            textPaint.textSize = 30f * u
-            canvas.drawText(bot.first, rect.left + 30f * u, rect.centerY() + 10f * u, textPaint)
+            textPaint.typeface = if (comp.isPlayer) boldFace else mediumFace
+            textPaint.color = if (comp.isPlayer) 0xFFFFE27A.toInt() else Color.WHITE
+            textPaint.textSize = 28f * u
+            canvas.drawText(displayName, rect.left + 30f * u, rect.centerY() + 10f * u, textPaint)
 
             textPaint.textAlign = Paint.Align.RIGHT
             textPaint.typeface = boldFace
-            canvas.drawText("${bot.second} pts", rect.right - 30f * u, rect.centerY() + 10f * u, textPaint)
+            canvas.drawText("${comp.score} pts", rect.right - 30f * u, rect.centerY() + 10f * u, textPaint)
         }
         textPaint.textAlign = Paint.Align.CENTER
     }

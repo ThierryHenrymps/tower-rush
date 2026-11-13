@@ -7,5 +7,6 @@ enum class GameState {
     WIZARD_SELECTION,
     STORE,
     BOT_RANKING,
+    NEW_RECORD,
     GAME_OVER
 }

@@ -1,5 +1,6 @@
 package com.henry.towerrush.game
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
 import android.os.Build
@@ -7,10 +8,13 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.henry.towerrush.ads.RewardedAdManager
+import com.henry.towerrush.data.BotRankingManager
 import com.henry.towerrush.data.GamePreferences
 import com.henry.towerrush.entities.Block
 import com.henry.towerrush.entities.IsoProjection
 import com.henry.towerrush.entities.Tower
+import com.henry.towerrush.media.SoundManager
 import com.henry.towerrush.store.StoreManager
 import com.henry.towerrush.ui.BackgroundRenderer
 import com.henry.towerrush.ui.EffectsRenderer
@@ -29,11 +33,16 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     private val uiRenderer = UIRenderer(storeManager)
     private val backgroundRenderer = BackgroundRenderer()
     private val effects = EffectsRenderer()
+    private val soundManager = SoundManager(context)
+    private val botRankingManager = BotRankingManager(context)
+    private val rewardedAdManager = RewardedAdManager(context)
 
     private var pulseAlpha = 255
     private var pulseAscending = false
     private var frameTime = 0L
     private var startTimeMs = 0L
+    private var lastState = GameState.START
+    private var matchRecorded = false
 
     // Câmera suave: segue a altura da torre com easing.
     private var cameraY = 0f
@@ -55,6 +64,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     override fun surfaceCreated(holder: SurfaceHolder) {
         engine.setup(width.toFloat(), height.toFloat())
         startTimeMs = SystemClock.uptimeMillis()
+        soundManager.startBackgroundMusic()
         isRunning = true
         gameThread = Thread(this)
         gameThread?.start()
@@ -66,6 +76,8 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         isRunning = false
+        soundManager.release()
+        soundManager.stopNewRecord()
         try {
             gameThread?.join()
         } catch (e: InterruptedException) {
@@ -105,6 +117,24 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
         engine.update()
         frameTime = SystemClock.uptimeMillis() - startTimeMs
 
+        if (engine.state == GameState.PLAYING) {
+            matchRecorded = false
+        } else if ((engine.state == GameState.GAME_OVER || engine.state == GameState.NEW_RECORD) && !matchRecorded) {
+            matchRecorded = true
+            botRankingManager.recordMatch(engine.score, startTimeMs + frameTime)
+        }
+
+        if (engine.state != lastState) {
+            if (engine.state == GameState.NEW_RECORD) {
+                soundManager.playNewRecord()
+            } else if (engine.state == GameState.WIZARD_SELECTION && lastState != GameState.WIZARD_SELECTION) {
+                soundManager.playMagicEvent()
+            } else if (lastState == GameState.NEW_RECORD && engine.state == GameState.START) {
+                soundManager.startBackgroundMusic()
+            }
+            lastState = engine.state
+        }
+
         if (pulseAscending) {
             pulseAlpha += 5
             if (pulseAlpha >= 255) pulseAscending = false
@@ -127,7 +157,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
         engine.wizard.update()
 
         // transição suave entre o mundo roxo do menu e o degradê da partida
-        val blendTarget = if (engine.state == GameState.START || engine.state == GameState.STORE || engine.state == GameState.BOT_RANKING) 0f else 1f
+        val blendTarget = if (engine.state == GameState.START || engine.state == GameState.STORE || engine.state == GameState.BOT_RANKING || engine.state == GameState.NEW_RECORD) 0f else 1f
         gameBlend += (blendTarget - gameBlend) * 0.07f
         if (abs(blendTarget - gameBlend) < 0.002f) gameBlend = blendTarget
 
@@ -142,6 +172,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     private fun onBlockPlaced() {
         val placed = engine.lastPlacedBlock ?: return
         placed.landedAtMs = SystemClock.uptimeMillis()
+        soundManager.playBlockPlace()
         if (engine.lastWasPerfect) {
             effects.spawnPerfect(placed)
         } else if (engine.lastCutWidth > 1f) {
@@ -171,7 +202,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
             GameState.BOT_RANKING -> {
                 drawShowcase(canvas, w, h)
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
-                uiRenderer.drawBotRanking(canvas, w, h, prefs.highScore)
+                uiRenderer.drawBotRanking(canvas, w, h, prefs.highScore, botRankingManager)
             }
             GameState.PLAYING -> {
                 drawTower(canvas, h, engine.movingBlock)
@@ -184,9 +215,13 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 wizard.draw(canvas)
                 uiRenderer.drawWizardSelection(canvas, w, h, wizard.currentCards, wizard.cardsAlpha, engine.activeDebuffMessage)
             }
-            GameState.GAME_OVER -> {
+            GameState.GAME_OVER, GameState.NEW_RECORD -> {
                 drawTower(canvas, h, null)
-                uiRenderer.drawGameOver(canvas, w, h, engine.score, prefs.highScore)
+                backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
+                uiRenderer.drawGameOver(
+                    canvas, w, h, engine.score, prefs.highScore,
+                    engine.hasRevivedThisGame, rewardedAdManager.isAdLoaded(), rewardedAdManager.isLoading()
+                )
             }
             else -> {}
         }
@@ -286,6 +321,30 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
             }
 
             if (engine.state == GameState.START && uiRenderer.settingsButtonBounds.contains(x, y)) {
+                return true
+            }
+
+            if (engine.state == GameState.GAME_OVER || engine.state == GameState.NEW_RECORD) {
+                if (!engine.hasRevivedThisGame && uiRenderer.reviveButtonBounds.contains(x, y)) {
+                    if (rewardedAdManager.isAdLoaded()) {
+                        rewardedAdManager.showAd(context as Activity, onRewarded = {
+                            engine.reviveGame()
+                            soundManager.startBackgroundMusic()
+                        }, onFailedOrClosed = {
+                            storeMessage = "Anúncio fechado sem recompensa"
+                            storeMessageUntil = SystemClock.uptimeMillis() + 1600L
+                        })
+                    } else {
+                        rewardedAdManager.loadAd()
+                        storeMessage = "Carregando anúncio, tente novamente"
+                        storeMessageUntil = SystemClock.uptimeMillis() + 1600L
+                    }
+                    return true
+                }
+                if (uiRenderer.gameOverRestartButtonBounds.contains(x, y)) {
+                    engine.state = GameState.START
+                    return true
+                }
                 return true
             }
 
