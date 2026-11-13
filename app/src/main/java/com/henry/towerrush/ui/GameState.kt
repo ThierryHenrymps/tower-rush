@@ -6,5 +6,6 @@ enum class GameState {
     PAUSED,
     WIZARD_SELECTION,
     STORE,
+    BOT_RANKING,
     GAME_OVER
 }

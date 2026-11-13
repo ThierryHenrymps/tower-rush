@@ -127,7 +127,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
         engine.wizard.update()
 
         // transição suave entre o mundo roxo do menu e o degradê da partida
-        val blendTarget = if (engine.state == GameState.START || engine.state == GameState.STORE) 0f else 1f
+        val blendTarget = if (engine.state == GameState.START || engine.state == GameState.STORE || engine.state == GameState.BOT_RANKING) 0f else 1f
         gameBlend += (blendTarget - gameBlend) * 0.07f
         if (abs(blendTarget - gameBlend) < 0.002f) gameBlend = blendTarget
 
@@ -167,6 +167,11 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
                 val msg = if (SystemClock.uptimeMillis() < storeMessageUntil) storeMessage else null
                 uiRenderer.drawStore(canvas, w, h, msg)
+            }
+            GameState.BOT_RANKING -> {
+                drawShowcase(canvas, w, h)
+                backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
+                uiRenderer.drawBotRanking(canvas, w, h, prefs.highScore)
             }
             GameState.PLAYING -> {
                 drawTower(canvas, h, engine.movingBlock)
@@ -249,6 +254,11 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 return true
             }
 
+            if (engine.state == GameState.START && uiRenderer.botRankingButtonBounds.contains(x, y)) {
+                engine.state = GameState.BOT_RANKING
+                return true
+            }
+
             if (engine.state == GameState.STORE) {
                 if (uiRenderer.storeCloseBounds.contains(x, y)) {
                     engine.state = GameState.START
@@ -263,6 +273,14 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                         }
                         return true
                     }
+                }
+                return true
+            }
+
+            if (engine.state == GameState.BOT_RANKING) {
+                if (uiRenderer.botRankingCloseBounds.contains(x, y)) {
+                    engine.state = GameState.START
+                    return true
                 }
                 return true
             }

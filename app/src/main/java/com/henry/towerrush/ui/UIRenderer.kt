@@ -36,6 +36,8 @@ class UIRenderer(private val storeManager: StoreManager) {
 
     val storeButtonBounds = RectF()
     val settingsButtonBounds = RectF()
+    val botRankingButtonBounds = RectF()
+    val botRankingCloseBounds = RectF()
     val powerUpCardBounds = mutableListOf<Pair<RectF, PowerUpType>>()
     val storeCardBounds = mutableListOf<Pair<RectF, Theme>>()
     val storeCloseBounds = RectF()
@@ -91,6 +93,25 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.alpha = 255
 
         drawStoreButton(canvas, width, height, u)
+        drawBotRankingButton(canvas, width, height, u)
+    }
+
+    private fun drawBotRankingButton(canvas: Canvas, width: Float, height: Float, u: Float) {
+        val cy = height * 0.95f
+        botRankingButtonBounds.set(width / 2f - 240f * u, cy - 44f * u, width / 2f + 240f * u, cy + 44f * u)
+        val r = 44f * u
+        fillPaint.color = 0xE60F0722.toInt()
+        canvas.drawRoundRect(botRankingButtonBounds, r, r, fillPaint)
+        strokePaint.shader = null
+        strokePaint.color = 0x55FFFFFF
+        strokePaint.strokeWidth = 3f * u
+        canvas.drawRoundRect(botRankingButtonBounds, r, r, strokePaint)
+
+        textPaint.textAlign = Paint.Align.CENTER
+        textPaint.typeface = boldFace
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 30f * u
+        canvas.drawText("🤖  RANKING DIÁRIO DE BOT", width / 2f, cy + 11f * u, textPaint)
     }
 
     private fun drawStoreButton(canvas: Canvas, width: Float, height: Float, u: Float) {
@@ -398,6 +419,66 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = boldFace
         textPaint.color = Color.WHITE
+    }
+
+    fun drawBotRanking(canvas: Canvas, width: Float, height: Float, highScore: Int) {
+        val u = width / 941f
+        fillPaint.color = 0xB0090320.toInt()
+        canvas.drawRect(0f, 0f, width, height, fillPaint)
+
+        // Botão Fechar
+        botRankingCloseBounds.set(34f * u, 50f * u, 122f * u, 138f * u)
+        drawGlass(canvas, botRankingCloseBounds, 28f * u)
+        strokePaint.shader = null
+        strokePaint.color = Color.WHITE
+        strokePaint.strokeWidth = 6f * u
+        strokePaint.strokeCap = Paint.Cap.ROUND
+        canvas.drawLine(62f * u, 78f * u, 94f * u, 110f * u, strokePaint)
+        canvas.drawLine(94f * u, 78f * u, 62f * u, 110f * u, strokePaint)
+        strokePaint.strokeCap = Paint.Cap.BUTT
+
+        // Título
+        textPaint.textAlign = Paint.Align.CENTER
+        textPaint.typeface = blackFace
+        textPaint.textSize = 48f * u
+        canvas.drawText("RANKING DIÁRIO DE BOT", width / 2f, 115f * u, textPaint)
+        textPaint.typeface = mediumFace
+        textPaint.textSize = 24f * u
+        textPaint.color = 0xFFD9C8FF.toInt()
+        canvas.drawText("Atualizado há 12 minutos", width / 2f, 155f * u, textPaint)
+
+        // Lista de ranking
+        val bots = listOf(
+            Triple("1. 🥇 CyberMaster (Bot)", 342, false),
+            Triple("2. 🥈 TowerBot_X (Bot)", 298, false),
+            Triple("3. 🥉 DeepStack (Bot)", 256, false),
+            Triple("4. 👤 Você", max(highScore, 120), true),
+            Triple("5. 🤖 BotBuilder99 (Bot)", 184, false),
+            Triple("6. 🤖 NanoBot (Bot)", 142, false),
+            Triple("7. 🤖 QuickStack (Bot)", 115, false)
+        )
+
+        val top = 200f * u
+        val rowH = 88f * u
+        val margin = 40f * u
+        val w = width - margin * 2f
+
+        bots.forEachIndexed { index, bot ->
+            val ry = top + index * (rowH + 14f * u)
+            rect.set(margin, ry, margin + w, ry + rowH)
+            drawGlass(canvas, rect, 22f * u, if (bot.third) 0xCC3D1C8C.toInt() else 0xB3180A44.toInt(), if (bot.third) 0xFFFFE27A.toInt() else 0x38FFFFFF)
+
+            textPaint.textAlign = Paint.Align.LEFT
+            textPaint.typeface = if (bot.third) boldFace else mediumFace
+            textPaint.color = if (bot.third) 0xFFFFE27A.toInt() else Color.WHITE
+            textPaint.textSize = 30f * u
+            canvas.drawText(bot.first, rect.left + 30f * u, rect.centerY() + 10f * u, textPaint)
+
+            textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.typeface = boldFace
+            canvas.drawText("${bot.second} pts", rect.right - 30f * u, rect.centerY() + 10f * u, textPaint)
+        }
+        textPaint.textAlign = Paint.Align.CENTER
     }
 
     private fun drawLock(canvas: Canvas, cx: Float, cy: Float, u: Float) {

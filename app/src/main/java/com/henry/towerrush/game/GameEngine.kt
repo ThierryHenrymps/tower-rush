@@ -141,18 +141,27 @@ class GameEngine(
         lastWasPerfect = false
         lastCutWidth = 0f
 
-        if (abs(diff) <= tolerance) {
+        val coinMultiplier = if (powerUpManager.hasDoubleCoins) 2 else 1
+        val scoreIncrement = if (powerUpManager.scoreMultiplierTicks > 0) 2 else 1
+
+        if (powerUpManager.isAutoPerfectActive) {
+            powerUpManager.isAutoPerfectActive = false
+            current.x = top.x
+            tower.addBlock(current)
+            prefs.coins += 2 * coinMultiplier
+            lastWasPerfect = true
+        } else if (abs(diff) <= tolerance) {
             // Encaixe Perfeito
             current.x = top.x
             tower.addBlock(current)
-            prefs.coins += 2
+            prefs.coins += 2 * coinMultiplier
             lastWasPerfect = true
         } else if (diff > 0 && diff < top.width) {
             // Corta lado direito
             val newWidth = top.width - diff
             current.width = newWidth
             tower.addBlock(current)
-            prefs.coins += 1
+            prefs.coins += 1 * coinMultiplier
             lastCutX = current.x + newWidth
             lastCutWidth = (oldWidth - newWidth).coerceAtLeast(0f)
         } else if (diff < 0 && abs(diff) < current.width) {
@@ -163,11 +172,15 @@ class GameEngine(
             current.x = top.x
             current.width = newWidth
             tower.addBlock(current)
-            prefs.coins += 1
+            prefs.coins += 1 * coinMultiplier
         } else {
             // Erro fatal
             if (powerUpManager.hasSecondChance) {
                 powerUpManager.hasSecondChance = false
+                current.x = top.x
+                tower.addBlock(current)
+            } else if (powerUpManager.extraShields > 0) {
+                powerUpManager.extraShields--
                 current.x = top.x
                 tower.addBlock(current)
             } else {
@@ -179,7 +192,7 @@ class GameEngine(
         lastPlacedBlock = current
         placementCount++
 
-        score++
+        score += scoreIncrement
         stackCount++
         moveSpeed += 0.25f * speedUnit
 
@@ -194,7 +207,9 @@ class GameEngine(
     }
 
     fun selectPowerUp(type: PowerUpType) {
-        powerUpManager.applyPowerUp(type)
+        powerUpManager.applyPowerUp(type) { bonus ->
+            score += bonus
+        }
         wizard.dismiss()
         state = GameState.PLAYING
         spawnNextBlock()
