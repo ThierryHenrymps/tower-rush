@@ -24,6 +24,8 @@ class GameEngine(
     var score: Int = 0
     var screenWidth: Float = 0f
     var screenHeight: Float = 0f
+    var wizardSummonCount: Int = 0
+    var activeDebuffMessage: String? = null
 
     // Medidas escalam com a largura da tela (1080 px = referência) e com o zoom da câmera.
     private var unit = 1f
@@ -65,6 +67,8 @@ class GameEngine(
         moveSpeed = 8f * speedUnit
         placementCount = 0
         lastPlacedBlock = null
+        wizardSummonCount = 0
+        activeDebuffMessage = null
         powerUpManager.reset()
         wizard.reset()
         tower.clear()
@@ -198,7 +202,13 @@ class GameEngine(
 
         // Verificação de aparição do Mago a cada 10 blocos
         if (stackCount % 10 == 0) {
+            wizardSummonCount++
             wizard.summon(screenWidth, screenHeight)
+            if (wizardSummonCount % 2 == 0) {
+                applyRandomDebuff()
+            } else {
+                activeDebuffMessage = null
+            }
             state = GameState.WIZARD_SELECTION
             return
         }
@@ -206,10 +216,26 @@ class GameEngine(
         spawnNextBlock()
     }
 
+    private fun applyRandomDebuff() {
+        val debuffs = listOf(
+            "⚠️ Maldição do Mago: Velocidade Turbinada!",
+            "⚠️ Maldição do Mago: Bloco Encolhido!",
+            "⚠️ Maldição do Mago: Direção Invertida!"
+        )
+        val choice = (0..2).random()
+        activeDebuffMessage = debuffs[choice]
+        when (choice) {
+            0 -> moveSpeed *= 1.35f
+            1 -> movingBlock?.let { it.width = (it.width * 0.75f).coerceAtLeast(80f * unit) }
+            2 -> movingRight = !movingRight
+        }
+    }
+
     fun selectPowerUp(type: PowerUpType) {
         powerUpManager.applyPowerUp(type) { bonus ->
             score += bonus
         }
+        activeDebuffMessage = null
         wizard.dismiss()
         state = GameState.PLAYING
         spawnNextBlock()

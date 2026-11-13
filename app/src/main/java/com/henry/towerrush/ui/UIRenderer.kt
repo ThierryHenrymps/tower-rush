@@ -195,13 +195,23 @@ class UIRenderer(private val storeManager: StoreManager) {
     // ------------------------------------------------------------------ mago / power-ups
 
     fun drawWizardSelection(
-        canvas: Canvas, width: Float, height: Float, cards: List<PowerUpType>, alpha: Float = 1f
+        canvas: Canvas, width: Float, height: Float, cards: List<PowerUpType>, alpha: Float = 1f, debuffMessage: String? = null
     ) {
         powerUpCardBounds.clear()
         if (cards.isEmpty() || alpha <= 0.01f) return
         val u = width / 941f
         canvas.saveLayerAlpha(0f, 0f, width, height, (alpha * 255f).toInt().coerceIn(0, 255))
         canvas.translate(0f, (1f - alpha) * 40f * u)
+
+        if (debuffMessage != null) {
+            rect.set(width * 0.1f, height * 0.28f, width * 0.9f, height * 0.36f)
+            drawGlass(canvas, rect, 20f * u, 0xEE7B113A.toInt(), 0x88FFFFFF.toInt())
+            textPaint.typeface = boldFace
+            textPaint.color = Color.WHITE
+            textPaint.textSize = 26f * u
+            canvas.drawText(debuffMessage, width / 2f, rect.centerY() + 9f * u, textPaint)
+        }
+
         val gap = width * 0.035f
         val n = cards.size
         val cardWidth = (width - gap * (n + 1)) / n
@@ -441,7 +451,7 @@ class UIRenderer(private val storeManager: StoreManager) {
         textPaint.textAlign = Paint.Align.CENTER
         textPaint.typeface = blackFace
         textPaint.textSize = 48f * u
-        canvas.drawText("RANKING DIÁRIO DE BOT", width / 2f, 115f * u, textPaint)
+        canvas.drawText("RANKING DIÁRIO", width / 2f, 115f * u, textPaint)
         textPaint.typeface = mediumFace
         textPaint.textSize = 24f * u
         textPaint.color = 0xFFD9C8FF.toInt()
@@ -449,13 +459,13 @@ class UIRenderer(private val storeManager: StoreManager) {
 
         // Lista de ranking
         val bots = listOf(
-            Triple("1. 🥇 CyberMaster (Bot)", 342, false),
-            Triple("2. 🥈 TowerBot_X (Bot)", 298, false),
-            Triple("3. 🥉 DeepStack (Bot)", 256, false),
+            Triple("1. 🥇 CyberMaster", 342, false),
+            Triple("2. 🥈 TowerLegend", 298, false),
+            Triple("3. 🥉 DeepStack", 256, false),
             Triple("4. 👤 Você", max(highScore, 120), true),
-            Triple("5. 🤖 BotBuilder99 (Bot)", 184, false),
-            Triple("6. 🤖 NanoBot (Bot)", 142, false),
-            Triple("7. 🤖 QuickStack (Bot)", 115, false)
+            Triple("5. 🤖 PixelKing", 184, false),
+            Triple("6. 🤖 ShadowKnight", 142, false),
+            Triple("7. 🤖 QuickStack", 115, false)
         )
 
         val top = 200f * u

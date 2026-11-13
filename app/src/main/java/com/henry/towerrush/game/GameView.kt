@@ -182,7 +182,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
             GameState.WIZARD_SELECTION -> {
                 drawTower(canvas, h, null)
                 wizard.draw(canvas)
-                uiRenderer.drawWizardSelection(canvas, w, h, wizard.currentCards, wizard.cardsAlpha)
+                uiRenderer.drawWizardSelection(canvas, w, h, wizard.currentCards, wizard.cardsAlpha, engine.activeDebuffMessage)
             }
             GameState.GAME_OVER -> {
                 drawTower(canvas, h, null)
