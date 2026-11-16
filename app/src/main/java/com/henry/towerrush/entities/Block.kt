@@ -143,9 +143,10 @@ class Block(
             val cx = (v[0] + v[4]) * 0.5f
             val cy = (v[1] + v[5]) * 0.5f
             val edgeW = sqrt((v[2] - v[0]) * (v[2] - v[0]) + (v[3] - v[1]) * (v[3] - v[1]))
-            val scale = edgeW / 570f
+            val scale = if (edgeW > 0f) edgeW / 570f else 1f
+            val modelH = if (scale > 0f) height / scale else 167.2f
             val depthRatio = if (width > 0f) depth * (570f / width) else 353.4f
-            waterSkin.draw(canvas, cx, cy, scale, SystemClock.uptimeMillis(), x.toInt() + y.toInt(), 570f, depthRatio)
+            waterSkin.draw(canvas, cx, cy, scale, SystemClock.uptimeMillis(), x.toInt() + y.toInt(), 570f, depthRatio, modelH)
             if (layered) canvas.restore()
             return
         }

@@ -108,12 +108,13 @@ class WaterBlockSkin(
         timeMs: Long,
         seed: Int = 0,
         w: Float = widthUnits,
-        d: Float = depthUnits
+        d: Float = depthUnits,
+        modelHeight: Float = heightUnits
     ) {
         if (scale <= 0f) return
         val t = (timeMs % 3_600_000L) / 1000f
         val phase = (seed * 1.7f) % twoPi
-        h = heightUnits
+        h = modelHeight
 
         val ax = w * cosT; val ay = w * sinT      // aresta da face esquerda (desce para a direita)
         val bx = d * cosT; val by = d * sinT      // aresta da face direita (sobe para a direita)
