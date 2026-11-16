@@ -8,7 +8,7 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import com.henry.towerrush.ads.RewardedAdManager
+import com.henry.towerrush.ads.AdMobManager
 import com.henry.towerrush.data.BotRankingManager
 import com.henry.towerrush.data.GamePreferences
 import com.henry.towerrush.entities.Block
@@ -36,7 +36,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     private val effects = EffectsRenderer()
     private val soundManager = SoundManager(context)
     private val botRankingManager = BotRankingManager(context)
-    private val rewardedAdManager = RewardedAdManager(context)
+    private val adMobManager = AdMobManager(context)
     private val menuWaterTower = MenuWaterTower()
 
     private var pulseAlpha = 255
@@ -240,7 +240,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
                 uiRenderer.drawGameOver(
                     canvas, w, h, engine.score, prefs.highScore,
-                    engine.hasRevivedThisGame, rewardedAdManager.isAdLoaded(), rewardedAdManager.isLoading()
+                    engine.hasRevivedThisGame, adMobManager.isRewardedLoaded(), adMobManager.isRewardedLoading()
                 )
             }
             else -> {}
@@ -322,6 +322,11 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 for (pair in uiRenderer.storeCardBounds) {
                     if (pair.first.contains(x, y)) {
                         val theme = pair.second
+                        if (theme.id == "aquatic") {
+                            storeMessage = "Skin Aquática exclusiva ($1.99) - Em breve!"
+                            storeMessageUntil = SystemClock.uptimeMillis() + 1600L
+                            return true
+                        }
                         if (!storeManager.purchaseAndEquip(theme)) {
                             storeMessage = "Moedas insuficientes"
                             storeMessageUntil = SystemClock.uptimeMillis() + 1600L
@@ -346,8 +351,8 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
 
             if (engine.state == GameState.GAME_OVER || engine.state == GameState.NEW_RECORD) {
                 if (!engine.hasRevivedThisGame && uiRenderer.reviveButtonBounds.contains(x, y)) {
-                    if (rewardedAdManager.isAdLoaded()) {
-                        rewardedAdManager.showAd(context as Activity, onRewarded = {
+                    if (adMobManager.isRewardedLoaded()) {
+                        adMobManager.showRewardedAd(context as Activity, onRewarded = {
                             engine.reviveGame()
                             soundManager.startBackgroundMusic()
                         }, onFailedOrClosed = {
@@ -355,17 +360,22 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                             storeMessageUntil = SystemClock.uptimeMillis() + 1600L
                         })
                     } else {
-                        rewardedAdManager.loadAd()
+                        adMobManager.loadRewardedAd()
                         storeMessage = "Carregando anúncio, tente novamente"
                         storeMessageUntil = SystemClock.uptimeMillis() + 1600L
                     }
                     return true
                 }
-                if (uiRenderer.gameOverRestartButtonBounds.contains(x, y)) {
-                    soundManager.stopNewRecord()
-                    soundManager.startBackgroundMusic()
+                
+                soundManager.stopNewRecord()
+                soundManager.startBackgroundMusic()
+                prefs.completedMatchesCount++
+                if (prefs.completedMatchesCount % 5 == 0 && adMobManager.isInterstitialLoaded()) {
+                    adMobManager.showInterstitialAd(context as Activity) {
+                        engine.state = GameState.START
+                    }
+                } else {
                     engine.state = GameState.START
-                    return true
                 }
                 return true
             }

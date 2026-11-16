@@ -12,6 +12,7 @@ class GamePreferences(context: Context) {
         private const val KEY_COINS = "coins"
         private const val KEY_SELECTED_THEME = "selected_theme"
         private const val KEY_UNLOCKED_THEMES = "unlocked_themes"
+        private const val KEY_COMPLETED_MATCHES = "completed_matches"
     }
 
     var highScore: Int
@@ -27,6 +28,10 @@ class GamePreferences(context: Context) {
     var selectedThemeId: String
         get() = prefs.getString(KEY_SELECTED_THEME, "aurora") ?: "aurora"
         set(value) = prefs.edit().putString(KEY_SELECTED_THEME, value).apply()
+
+    var completedMatchesCount: Int
+        get() = prefs.getInt(KEY_COMPLETED_MATCHES, 0)
+        set(value) = prefs.edit().putInt(KEY_COMPLETED_MATCHES, value).apply()
 
     fun getUnlockedThemes(): Set<String> {
         return prefs.getStringSet(KEY_UNLOCKED_THEMES, setOf("candy", "aurora")) ?: setOf("candy", "aurora")

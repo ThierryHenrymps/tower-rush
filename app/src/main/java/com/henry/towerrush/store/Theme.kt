@@ -54,11 +54,18 @@ class StoreManager(private val prefs: GamePreferences) {
 
     val coins: Int get() = prefs.coins
 
-    fun isUnlocked(theme: Theme): Boolean = prefs.getUnlockedThemes().contains(theme.id)
+    fun isUnlocked(theme: Theme): Boolean {
+        if (theme.id == "aquatic") return false
+        return prefs.getUnlockedThemes().contains(theme.id)
+    }
 
-    fun canPurchase(theme: Theme): Boolean = prefs.coins >= theme.price
+    fun canPurchase(theme: Theme): Boolean {
+        if (theme.id == "aquatic") return false
+        return prefs.coins >= theme.price
+    }
 
     fun purchaseAndEquip(theme: Theme): Boolean {
+        if (theme.id == "aquatic") return false
         val unlocked = prefs.getUnlockedThemes()
         if (unlocked.contains(theme.id)) {
             prefs.selectedThemeId = theme.id

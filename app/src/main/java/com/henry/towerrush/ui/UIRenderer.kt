@@ -438,6 +438,7 @@ class UIRenderer(private val storeManager: StoreManager) {
 
             val unlocked = storeManager.isUnlocked(theme)
             val selected = theme.id == selectedId
+            val isAquaticPremium = theme.id == "aquatic"
             drawGlass(
                 canvas, r, 30f * u,
                 if (unlocked) 0xB3180A44.toInt() else 0xB30E0626.toInt(),
@@ -453,7 +454,7 @@ class UIRenderer(private val storeManager: StoreManager) {
             // nome
             textPaint.textAlign = Paint.Align.LEFT
             textPaint.typeface = boldFace
-            textPaint.color = if (unlocked) Color.WHITE else 0xFFC9BCE6.toInt()
+            textPaint.color = if (unlocked || isAquaticPremium) Color.WHITE else 0xFFC9BCE6.toInt()
             textPaint.textSize = 38f * u
             canvas.drawText(theme.name, r.left + 28f * u, r.top + 62f * u, textPaint)
 
@@ -490,6 +491,11 @@ class UIRenderer(private val storeManager: StoreManager) {
                 textPaint.color = 0xFF9BFFC9.toInt()
                 textPaint.textSize = 28f * u
                 canvas.drawText("EQUIPADO", r.left + 72f * u, fy + 2f * u, textPaint)
+            } else if (isAquaticPremium) {
+                textPaint.typeface = boldFace
+                textPaint.color = 0xFFFFE27A.toInt()
+                textPaint.textSize = 28f * u
+                canvas.drawText("⭐ $1.99", r.left + 28f * u, fy + 2f * u, textPaint)
             } else if (unlocked) {
                 textPaint.typeface = mediumFace
                 textPaint.color = 0xFFE0D2FF.toInt()
