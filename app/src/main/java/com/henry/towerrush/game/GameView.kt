@@ -15,6 +15,7 @@ import com.henry.towerrush.entities.Block
 import com.henry.towerrush.entities.IsoProjection
 import com.henry.towerrush.entities.Tower
 import com.henry.towerrush.media.SoundManager
+import com.henry.towerrush.media.aquatic.icon.MenuWaterTower
 import com.henry.towerrush.store.StoreManager
 import com.henry.towerrush.ui.BackgroundRenderer
 import com.henry.towerrush.ui.EffectsRenderer
@@ -36,6 +37,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     private val soundManager = SoundManager(context)
     private val botRankingManager = BotRankingManager(context)
     private val rewardedAdManager = RewardedAdManager(context)
+    private val menuWaterTower = MenuWaterTower()
 
     private var pulseAlpha = 255
     private var pulseAscending = false
@@ -195,18 +197,30 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
 
         when (engine.state) {
             GameState.START -> {
-                drawShowcase(canvas, w, h)
+                if (storeManager.getCurrentTheme().id == "aquatic") {
+                    menuWaterTower.draw(canvas, w, h, frameTime)
+                } else {
+                    drawShowcase(canvas, w, h)
+                }
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
                 uiRenderer.drawStartScreen(canvas, w, h, pulseAlpha, prefs.highScore, frameTime)
             }
             GameState.STORE -> {
-                drawShowcase(canvas, w, h)
+                if (storeManager.getCurrentTheme().id == "aquatic") {
+                    menuWaterTower.draw(canvas, w, h, frameTime)
+                } else {
+                    drawShowcase(canvas, w, h)
+                }
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
                 val msg = if (SystemClock.uptimeMillis() < storeMessageUntil) storeMessage else null
                 uiRenderer.drawStore(canvas, w, h, msg)
             }
             GameState.BOT_RANKING -> {
-                drawShowcase(canvas, w, h)
+                if (storeManager.getCurrentTheme().id == "aquatic") {
+                    menuWaterTower.draw(canvas, w, h, frameTime)
+                } else {
+                    drawShowcase(canvas, w, h)
+                }
                 backgroundRenderer.drawForeground(canvas, frameTime, cameraY, gameBlend)
                 uiRenderer.drawBotRanking(canvas, w, h, prefs.highScore, botRankingManager)
             }
