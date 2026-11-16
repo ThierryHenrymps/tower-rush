@@ -75,13 +75,17 @@ class GameEngine(
         wizard.reset()
         tower.clear()
 
+        val theme = storeManager.getCurrentTheme()
+        val isAquatic = theme.id == "aquatic"
+
         // Bloco base inicial
         val baseBlock = Block(
             x = (screenWidth - defaultWidth) / 2f - blockHeight * 0.46f,
             y = screenHeight * 0.755f,
             width = defaultWidth,
             height = blockHeight,
-            color = storeManager.getCurrentTheme().colors[0]
+            color = theme.colors[0],
+            isAquatic = isAquatic
         )
         tower.addBlock(baseBlock)
         spawnNextBlock()
@@ -98,6 +102,7 @@ class GameEngine(
         }
 
         val theme = storeManager.getCurrentTheme()
+        val isAquatic = theme.id == "aquatic"
         val color = theme.colors[stackCount % theme.colors.size]
 
         movingBlock = Block(
@@ -105,7 +110,8 @@ class GameEngine(
             y = top.y - blockHeight,
             width = nextWidth,
             height = blockHeight,
-            color = color
+            color = color,
+            isAquatic = isAquatic
         )
     }
 

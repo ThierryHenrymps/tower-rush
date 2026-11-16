@@ -1,11 +1,13 @@
 package com.henry.towerrush.entities
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
 import android.os.SystemClock
+import com.henry.towerrush.media.aquatico.WaterBlockSkin
 import com.henry.towerrush.ui.ColorUtils
 import kotlin.math.cos
 import kotlin.math.exp
@@ -13,8 +15,7 @@ import kotlin.math.max
 
 /**
  * Prisma isométrico com três faces visíveis (topo, esquerda, direita), no estilo da referência.
- * A colisão usa apenas x/width/height. Paths e shaders ficam em cache (coordenadas locais)
- * e só são refeitos se a largura ou a projeção mudarem.
+ * Suporta skin de bloco aquático com efeito de água e bolhas.
  */
 class Block(
     var x: Float,
@@ -22,7 +23,8 @@ class Block(
     var width: Float,
     val height: Float,
     val color: Int,
-    val depth: Float = IsoProjection.depth
+    val depth: Float = IsoProjection.depth,
+    val isAquatic: Boolean = false
 ) {
     /** 0..255 – usado nos pedaços cortados que caem. */
     var alpha: Int = 255
@@ -48,6 +50,7 @@ class Block(
     private val leftPath = Path()
     private val rightPath = Path()
     private val shadowPath = Path()
+    private val waterSkin = WaterBlockSkin()
 
     private val topPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val leftPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -103,18 +106,33 @@ class Block(
         rightPath.moveTo(dxp, dyp); rightPath.lineTo(lx + dxp, -ly + dyp)
         rightPath.lineTo(lx + dxp, -ly + dyp + h); rightPath.lineTo(dxp, dyp + h); rightPath.close()
 
-        topPaint.shader = LinearGradient(
-            0f, 0f, lx + dxp, -ly + dyp,
-            ColorUtils.lighten(color, 0.30f), ColorUtils.lighten(color, 0.16f), Shader.TileMode.CLAMP
-        )
-        leftPaint.shader = LinearGradient(
-            0f, 0f, 0f, dyp + h,
-            ColorUtils.lighten(color, 0.04f), ColorUtils.darken(color, 0.06f), Shader.TileMode.CLAMP
-        )
-        rightPaint.shader = LinearGradient(
-            0f, -ly + dyp, 0f, dyp + h,
-            ColorUtils.darken(color, 0.14f), ColorUtils.darken(color, 0.26f), Shader.TileMode.CLAMP
-        )
+        if (isAquatic) {
+            topPaint.shader = LinearGradient(
+                0f, 0f, lx + dxp, -ly + dyp,
+                Color.parseColor("#BFE8FF"), Color.parseColor("#79C8F5"), Shader.TileMode.CLAMP
+            )
+            leftPaint.shader = LinearGradient(
+                0f, 0f, 0f, dyp + h,
+                Color.parseColor("#3FA2E5"), Color.parseColor("#1E75C4"), Shader.TileMode.CLAMP
+            )
+            rightPaint.shader = LinearGradient(
+                0f, -ly + dyp, 0f, dyp + h,
+                Color.parseColor("#1E75C4"), Color.parseColor("#0F4C8A"), Shader.TileMode.CLAMP
+            )
+        } else {
+            topPaint.shader = LinearGradient(
+                0f, 0f, lx + dxp, -ly + dyp,
+                ColorUtils.lighten(color, 0.30f), ColorUtils.lighten(color, 0.16f), Shader.TileMode.CLAMP
+            )
+            leftPaint.shader = LinearGradient(
+                0f, 0f, 0f, dyp + h,
+                ColorUtils.lighten(color, 0.04f), ColorUtils.darken(color, 0.06f), Shader.TileMode.CLAMP
+            )
+            rightPaint.shader = LinearGradient(
+                0f, -ly + dyp, 0f, dyp + h,
+                ColorUtils.darken(color, 0.14f), ColorUtils.darken(color, 0.26f), Shader.TileMode.CLAMP
+            )
+        }
     }
 
     private fun squash(): Float {
@@ -126,6 +144,27 @@ class Block(
 
     fun draw(canvas: Canvas) {
         if (builtWidth != width || builtVersion != IsoProjection.version) rebuild()
+        if (isAquatic) {
+            val layered = alpha < 255
+            val px = ax
+            val py = ay
+            if (layered) {
+                canvas.saveLayerAlpha(px - 4f, minY - 4f, maxX + 4f, maxY + 4f, alpha)
+            }
+            val u = IsoProjection.ux
+            val v = IsoProjection.uy
+            val l1 = width * u
+            val l2 = width * v
+            val d1 = depth * u
+            val d2 = depth * v
+            val cx = px + (l1 + d1) * 0.5f
+            val cy = py + (-l2 + d2) * 0.5f
+            val halfW = l1 * 0.5f
+            waterSkin.draw(canvas, cx, cy, halfW, height, SystemClock.uptimeMillis(), x.toInt() + y.toInt())
+            if (layered) canvas.restore()
+            return
+        }
+
         val layered = alpha < 255
         val px = ax
         val py = ay
@@ -140,6 +179,7 @@ class Block(
         canvas.drawPath(leftPath, leftPaint)
         canvas.drawPath(rightPath, rightPaint)
         canvas.drawPath(topPath, topPaint)
+
         // arestas iluminadas (luz vem de cima à esquerda)
         canvas.drawLine(0f, 0f, lx, -ly, rimPaint)
         canvas.drawLine(0f, 0f, dxp, dyp, rimPaint)

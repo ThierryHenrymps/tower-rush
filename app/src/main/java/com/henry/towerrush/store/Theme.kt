@@ -21,23 +21,27 @@ class StoreManager(private val prefs: GamePreferences) {
             Color.parseColor("#FF6B6B"), Color.parseColor("#4ECDC4"),
             Color.parseColor("#FFE66D"), Color.parseColor("#FF8E72")
         )),
-        Theme("ocean", "Ocean", 150, listOf(
+        Theme("ocean", "Ocean", 300, listOf(
             Color.parseColor("#0077B6"), Color.parseColor("#00B4D8"),
             Color.parseColor("#90E0EF"), Color.parseColor("#03045E")
         )),
-        Theme("sunset", "Sunset", 350, listOf(
+        Theme("sunset", "Sunset", 750, listOf(
             Color.parseColor("#F72585"), Color.parseColor("#7209B7"),
             Color.parseColor("#3A0CA3"), Color.parseColor("#4361EE")
         )),
-        Theme("galaxy", "Galaxy", 700, listOf(
+        Theme("aquatic", "Aquático", 1200, listOf(
+            Color.parseColor("#79C8F5"), Color.parseColor("#3FA2E5"),
+            Color.parseColor("#1E75C4"), Color.parseColor("#0F4C8A")
+        )),
+        Theme("galaxy", "Galaxy", 1500, listOf(
             Color.parseColor("#240046"), Color.parseColor("#5A189A"),
             Color.parseColor("#9D4EDD"), Color.parseColor("#E0AAFF")
         )),
-        Theme("neon", "Neon", 1200, listOf(
+        Theme("neon", "Neon", 3000, listOf(
             Color.parseColor("#39FF14"), Color.parseColor("#FF073A"),
             Color.parseColor("#0FF0FC"), Color.parseColor("#CCFF00")
         )),
-        Theme("rainbow", "Rainbow", 2500, listOf(
+        Theme("rainbow", "Rainbow", 6000, listOf(
             Color.parseColor("#FF0000"), Color.parseColor("#FF7F00"),
             Color.parseColor("#FFFF00"), Color.parseColor("#00FF00"),
             Color.parseColor("#0000FF"), Color.parseColor("#8B00FF")

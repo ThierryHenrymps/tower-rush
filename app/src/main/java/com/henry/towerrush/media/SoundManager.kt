@@ -8,6 +8,7 @@ class SoundManager(context: Context) {
     private val appContext = context.applicationContext
     private var bgPlayer: MediaPlayer? = null
     private var newRecordPlayer: MediaPlayer? = null
+    private var magicPlayer: MediaPlayer? = null
 
     fun startBackgroundMusic() {
         try {
@@ -37,8 +38,29 @@ class SoundManager(context: Context) {
         playSfx(R.raw.block_place)
     }
 
+    fun playWaterSplash() {
+        playSfx(R.raw.water_splash)
+    }
+
     fun playMagicEvent() {
-        playSfx(R.raw.magic_event)
+        try {
+            magicPlayer?.release()
+            magicPlayer = MediaPlayer.create(appContext, R.raw.magic_event).apply {
+                setVolume(0.7f, 0.7f)
+                setOnCompletionListener { it.release(); magicPlayer = null }
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun stopMagicEvent() {
+        try {
+            magicPlayer?.stop()
+            magicPlayer?.release()
+            magicPlayer = null
+        } catch (e: Exception) {}
     }
 
     fun playNewRecord() {
@@ -80,6 +102,8 @@ class SoundManager(context: Context) {
             bgPlayer = null
             newRecordPlayer?.release()
             newRecordPlayer = null
+            magicPlayer?.release()
+            magicPlayer = null
         } catch (e: Exception) {}
     }
 }

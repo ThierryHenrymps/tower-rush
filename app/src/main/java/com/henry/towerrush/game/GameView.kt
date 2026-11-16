@@ -129,7 +129,8 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 soundManager.playNewRecord()
             } else if (engine.state == GameState.WIZARD_SELECTION && lastState != GameState.WIZARD_SELECTION) {
                 soundManager.playMagicEvent()
-            } else if (lastState == GameState.NEW_RECORD && engine.state == GameState.START) {
+            } else if (engine.state == GameState.START) {
+                soundManager.stopNewRecord()
                 soundManager.startBackgroundMusic()
             }
             lastState = engine.state
@@ -172,11 +173,16 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
     private fun onBlockPlaced() {
         val placed = engine.lastPlacedBlock ?: return
         placed.landedAtMs = SystemClock.uptimeMillis()
-        soundManager.playBlockPlace()
-        if (engine.lastWasPerfect) {
-            effects.spawnPerfect(placed)
-        } else if (engine.lastCutWidth > 1f) {
-            effects.spawnDebris(engine.lastCutX, engine.lastCutWidth, placed)
+        if (placed.isAquatic) {
+            soundManager.playWaterSplash()
+            effects.spawnWaterSplash(placed)
+        } else {
+            soundManager.playBlockPlace()
+            if (engine.lastWasPerfect) {
+                effects.spawnPerfect(placed)
+            } else if (engine.lastCutWidth > 1f) {
+                effects.spawnDebris(engine.lastCutX, engine.lastCutWidth, placed)
+            }
         }
     }
 
@@ -342,6 +348,8 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                     return true
                 }
                 if (uiRenderer.gameOverRestartButtonBounds.contains(x, y)) {
+                    soundManager.stopNewRecord()
+                    soundManager.startBackgroundMusic()
                     engine.state = GameState.START
                     return true
                 }
@@ -352,6 +360,7 @@ class GameView(context: Context) : SurfaceView(context), SurfaceHolder.Callback,
                 if (engine.wizard.cardsAlpha < 0.6f) return true
                 for (pair in uiRenderer.powerUpCardBounds) {
                     if (pair.first.contains(x, y)) {
+                        soundManager.stopMagicEvent()
                         engine.selectPowerUp(pair.second)
                         return true
                     }

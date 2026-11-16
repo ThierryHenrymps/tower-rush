@@ -9,7 +9,7 @@ import kotlin.random.Random
 
 class EffectsRenderer {
     private class Debris(val block: Block, val vx: Float, var vy: Float, var life: Float)
-    private class Ring(val v: FloatArray, val h: Float, var t: Float)
+    private class Ring(val v: FloatArray, val h: Float, var t: Float, val isWater: Boolean = false)
     private class Spark(
         var x: Float, var y: Float, val vx: Float, var vy: Float,
         var life: Float, val size: Float, val colorIndex: Int
@@ -21,6 +21,7 @@ class EffectsRenderer {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
     private val sparkColors = intArrayOf(0xFFFFFFFF.toInt(), 0xFFFFD6FF.toInt(), 0xFFB8F2FF.toInt())
+    private val waterColors = intArrayOf(0xFFB8F2FF.toInt(), 0xFF79C8F5.toInt(), 0xFF3FA2E5.toInt())
 
     fun clear() {
         debris.clear(); rings.clear(); sparks.clear()
@@ -28,7 +29,7 @@ class EffectsRenderer {
 
     fun spawnDebris(cutX: Float, cutWidth: Float, source: Block) {
         if (cutWidth < 2f) return
-        val piece = Block(cutX, source.y, cutWidth, source.height, source.color, source.depth)
+        val piece = Block(cutX, source.y, cutWidth, source.height, source.color, source.depth, source.isAquatic)
         val dir = if (cutX > source.x) 1f else -1f
         debris.add(Debris(piece, dir * source.height * 0.03f, -source.height * 0.04f, 1f))
     }
@@ -36,12 +37,13 @@ class EffectsRenderer {
     fun spawnPerfect(b: Block) {
         val v = FloatArray(8)
         b.topVertices(v)
-        rings.add(Ring(v, b.height, 0f))
+        rings.add(Ring(v, b.height, 0f, b.isAquatic))
         for (i in 0 until 14) {
             val u = Random.nextFloat()
             val w = Random.nextFloat()
             val x = v[0] + u * (v[2] - v[0]) + w * (v[6] - v[0])
             val y = v[1] + u * (v[3] - v[1]) + w * (v[7] - v[1])
+            val colors = if (b.isAquatic) waterColors else sparkColors
             sparks.add(
                 Spark(
                     x, y,
@@ -49,10 +51,14 @@ class EffectsRenderer {
                     -(0.02f + Random.nextFloat() * 0.05f) * b.height,
                     1f,
                     b.height * (0.03f + Random.nextFloat() * 0.03f),
-                    i % sparkColors.size
+                    i % colors.size
                 )
             )
         }
+    }
+
+    fun spawnWaterSplash(b: Block) {
+        spawnPerfect(b)
     }
 
     /** Chamado uma vez por frame (o jogo roda a ~60 fps). */
@@ -90,7 +96,6 @@ class EffectsRenderer {
     fun draw(canvas: Canvas) {
         for (d in debris) d.block.draw(canvas)
 
-        // plano translúcido que se expande a partir da face superior (como na referência)
         for (r in rings) {
             val v = r.v
             val cx = (v[0] + v[4]) * 0.5f
@@ -104,18 +109,20 @@ class EffectsRenderer {
             path.close()
             val fade = 1f - r.t
             paint.style = Paint.Style.FILL
-            paint.color = ColorUtils.withAlpha(0xFFBFF5DC.toInt(), (fade * 120f).toInt())
+            val fillColor = if (r.isWater) 0xFF79C8F5.toInt() else 0xFFBFF5DC.toInt()
+            paint.color = ColorUtils.withAlpha(fillColor, (fade * 120f).toInt())
             canvas.drawPath(path, paint)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = r.h * 0.03f * fade + 1f
             paint.strokeJoin = Paint.Join.ROUND
-            paint.color = ColorUtils.withAlpha(0xFFFFFFFF.toInt(), (fade * 220f).toInt())
+            val strokeColor = if (r.isWater) 0xFFFFFFFF.toInt() else 0xFFFFFFFF.toInt()
+            paint.color = ColorUtils.withAlpha(strokeColor, (fade * 220f).toInt())
             canvas.drawPath(path, paint)
         }
         paint.style = Paint.Style.FILL
 
         for (s in sparks) {
-            paint.color = ColorUtils.withAlpha(sparkColors[s.colorIndex], (s.life.coerceIn(0f, 1f) * 255f).toInt())
+            paint.color = ColorUtils.withAlpha(sparkColors[s.colorIndex % sparkColors.size], (s.life.coerceIn(0f, 1f) * 255f).toInt())
             canvas.drawCircle(s.x, s.y, s.size, paint)
         }
     }
